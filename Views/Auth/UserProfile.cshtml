@@ -1,0 +1,74 @@
+﻿@model WebAuthnDemo.Models.User
+
+<h2>Welcome to your profile</h2>
+<p>Here, you can add fingerprint or facial recognition data.</p>
+
+<h2>User Profile</h2>
+
+<style>
+    .popup {
+        display: block;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+    }
+</style>
+
+@if (!Model.HasRegisteredFaceId && !Model.HasRegisteredFingerprint)
+{
+    <div id="bioPopup" class="popup">
+        <h3>Register your biometric data</h3>
+        <p>For additional security, please register your FaceID or Fingerprint.</p>
+        <button id="registerFaceId" onclick="registerBio('FaceID')">Register FaceID</button>
+        <button id="registerFingerprint" onclick="registerBio('Fingerprint')">Register Fingerprint</button>
+    </div>
+}
+
+<script>
+    // Unified function to handle biometric data registration
+    function registerBio(bioType) {
+        // Step 1: Fetch the WebAuthn registration options from the server
+        fetch('/Auth/StartWebAuthnRegistration')
+            .then(response => response.json())
+            .then(options => {
+                // Step 2: Start WebAuthn registration process
+                navigator.credentials.create({
+                    publicKey: options
+                })
+                    .then(credential => {
+                        // Step 3: Send the credential to your server for storage
+                        fetch('/Auth/CompleteWebAuthnRegistration', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                credential: credential
+                            })
+                        })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data === "Registration Successful") {
+                                    alert(bioType + ' registered successfully!');
+                                    // Update model after successful registration
+                                    location.reload(); // Refresh the page to reflect the updated registration status
+                                } else {
+                                    alert('Registration failed!');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error registering biometric data:', error);
+                            });
+                    })
+                    .catch(error => {
+                        console.error('Error during WebAuthn registration:', error);
+                    });
+            });
+    }
+</script>
